@@ -1,0 +1,7 @@
+ 1 Bash  cd $W && ls -la && find . -type f -not -path './.godot/*' | head -50 && cat project.godot && cat main.tscn && mkdir -p shots
+ 2 Bash  cd $W && cat -n spawner.gd && echo ---- && cat -n dungeon.gd && echo ---- && cat tools/shot.gd | head -60
+ 3 Bash  cd $W && cat recipe/runtime_audit.body.txt | head -150; echo ----; timeout 90 /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --headless --path $W res://tools/runner.tscn -- res://main.tscn res://recipe/runtime_audit.body.txt 2>&1 | tail -40
+ 4 Bash  cd $W && python3 - <<'EOF' ⏎ p='spawner.gd' ⏎ s=open(p).read() ⏎ s=s.replace('''const FLOOR_Y := 0.0  # world height of the ground ⏎  ⏎  ⏎ ''','') ⏎ s=s.replace('''		prop.position = Vector3(spec[1].x, FLOOR_Y + half_height(prop), spec[1].y) ⏎ ''','''		prop.position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y) ⏎ ''') ⏎ s=s.replace('''		prop.position = Vector3(spec[1].x, 0
+ 5 Bash  cd $W && mkdir -p shots && timeout 100 xvfb-run -a -s "-screen 0 1280x720x24" /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --rendering-driver opengl3 --path $W res://tools/shot.tscn -- res://main.tscn $W/shots/after.png 2>&1 | tail -5 ⏎ cat > shots/pos.body.txt <<'EOF' ⏎ var out := [] ⏎ var cam: Camera3D = root.get_camera_3d() ⏎ for n in tree.current_scene.get_node("Decor").get_children
+ 6 Read  $W/shots/after.png
+ 7 Bash  cd $W && timeout 60 /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --headless --path $W --quit-after 120 2>&1 | grep -ciE "error|warning"; echo exit=$?

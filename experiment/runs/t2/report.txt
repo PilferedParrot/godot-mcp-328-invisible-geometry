@@ -1,0 +1,20 @@
+ROOT CAUSES:
+1. Clutter props (Rubble, Fungus, Bones, Puddle) were buried under the floor. spawner.gd used the hard-coded constant FLOOR_Y := 0.0 as the ground height. The GridMap has cell_center_y = true, so its 0.1 m slab is centred at y = 1.0 and its top is at y = 1.05. These props were placed at y = 0.01 to 0.2, below the slab, so the opaque floor hid them. The constant's comment ("world height of the ground") was wrong. The other two spawn functions already used surface_y() to read the real height.
+2. The small props (Skull, Candle, Bucket) were all stacked at the world origin. `_drop_small_props` set `prop.global_position.y` before `decor.add_child(prop)`. A node outside the tree has no global transform. Godot logged "Condition !is_inside_tree() ... get_global_transform" for each one and returned an identity transform. The setter then wrote that identity transform back with only y changed, which reset x and z to 0. All three ended up at (0, ~1.2, 0), so only the last one (the brown Bucket) showed in the "before" screenshot, in the middle of the floor.
+3. Lantern and Chest were placed behind the camera. `_place_ahead_of_player` added `cam.global_basis.z * distance`. A Godot camera looks down -Z, so +Z points behind it. They landed at z of about 10.6 to 11.5 (camera at z = 7), and `is_position_behind` was true for both.
+
+CHANGES (all in /home/USER/tmp/scene-debug-trials/t2/spawner.gd; no other file touched):
+- Lines 4-5: removed the stale `const FLOOR_Y := 0.0`. Its only use was line 17 and nothing else references it.
+- Line 17 (`_scatter_clutter`): the y value is now `surface_y(spec[1]) + half_height(prop)` instead of `FLOOR_Y + half_height(prop)`.
+- Line 27 (`_drop_small_props`): replaced the `position = Vector3(x, 0.0, z)` line and the pre-add_child `global_position.y` line with one line, `prop.position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)`. This keeps x and z and gives the correct y without needing the tree.
+- Line 34 (`_place_ahead_of_player`): `cam.global_basis.z * spec[1]` became `- cam.global_basis.z * spec[1]`, so the props are placed in front of the camera.
+
+VERIFICATION:
+- Before the change, runner output showed Skull, Candle and Bucket all at (0, 1.19-1.21, 0), Lantern and Chest at z of about 10.6-11.5 with behind=true, and three get_global_transform errors from spawner.gd:31 on the log. The screenshot shows only one brown cylinder on an empty floor (shots/before.png).
+- After the change, the runner (headless, res://main.tscn) printed no ERROR lines. All 9 props have distinct positions, `is_visible_in_tree` true, `is_position_behind` false, and on-screen projected coordinates. Example positions: Rubble (-3, 1.25, 1), Skull (-1.5, 1.19, 3), Lantern (-0.5, 1.21, 2.53), Chest (2.5, 1.275, 3.42).
+- Each prop's y minus its half-height equals the slab top at 1.05 (checked from the printed positions and mesh sizes, not by a separate physics test). Rubble: 1.25 - 0.2 = 1.05. Puddle: 1.06 - 0.01 = 1.05.
+- The software-GL screenshot (shots/after.png, 1280x720) shows all 9 props (rubble box, green fungus cylinder, bones, blue puddle, skull, candle, brown bucket, orange lantern, brown chest) resting on the floor in view of the camera.
+- Screenshots are in /home/USER/tmp/scene-debug-trials/t2/shots/: before.png, after.png, and my inspection script inspect.gdbody.
+
+MODEL: claude-sonnet-5-5 (Sonnet 5.5), self-reported
+TOOL_CALLS: 8 (including this handback)

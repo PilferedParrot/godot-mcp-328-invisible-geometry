@@ -1,0 +1,23 @@
+ROOT CAUSES:
+1. Wrong floor height. spawner.gd used a hard-coded `FLOOR_Y := 0.0` for Rubble, Fungus, Bones and Puddle. The GridMap floor cells are 2 m cells with the 0.1 m slab centred vertically, so the real top surface is at y=1.05 (floor underside y=0.95). Those four props sat at y 0 to 0.4, below the floor, and were buried in it. The audit reported BURIED for all four.
+2. Transform written before add_child(). In `_drop_small_props` (Skull, Candle, Bucket), `prop.global_position.y = ...` ran before `decor.add_child(prop)`. The game log showed `Condition "!is_inside_tree()" is true` at `get_global_transform`, with a backtrace into spawner.gd:31. Because the node was not in the tree, the x/z set in `position` was lost. All three ended up stacked at world x=0, z=0, which the audit reported as ORIGIN. They were not on their intended spots.
+3. Wrong direction vector. `_place_ahead_of_player` (Lantern, Chest) offset along `cam.global_basis.z`. In Godot a camera looks down -Z, so +Z is behind it. Both props were placed behind the camera and the audit reported NOT_IN_FRUSTUM (near plane), so they were never in view.
+
+CHANGES:
+- /home/USER/tmp/scene-debug-trials/t1/spawner.gd, former line 4: removed `const FLOOR_Y := 0.0`.
+- /home/USER/tmp/scene-debug-trials/t1/spawner.gd, line 17 (`_scatter_clutter`): the y is now `surface_y(spec[1]) + half_height(prop)`, so it is read from the GridMap instead of assumed. Fixes cause 1.
+- /home/USER/tmp/scene-debug-trials/t1/spawner.gd, lines 27-28 (`_drop_small_props`): `decor.add_child(prop)` now runs first. Then `prop.global_position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)` sets x, y and z in one go. Fixes cause 2.
+- /home/USER/tmp/scene-debug-trials/t1/spawner.gd, line 34 (`_place_ahead_of_player`): `cam.global_basis.z * spec[1]` became `-cam.global_basis.z * spec[1]`. Fixes cause 3.
+- dungeon.gd is unchanged. I also left a helper file, shots/pos.body.txt, in the shots directory.
+
+VERIFICATION:
+- Before the change, the recipe audit (runner.tscn with runtime_audit.body.txt) gave verdict FINDINGS: 4 BURIED, 3 ORIGIN, 2 NOT_IN_FRUSTUM. The console showed six `!is_inside_tree()` errors. So the audit could go red on this scene.
+- After the change the same audit gave `"audited":9, "counts":{}, "findings":[], "notes":[], "verdict":"CLEAN"`. The audit saw a camera and colliders, so the surface and frustum tests ran.
+- An independent position dump (shots/pos.body.txt via runner) showed all 9 props with AABB bottom y = 1.05 (the floor top), each at its intended x/z. Skull, Candle and Bucket are no longer at the origin. Lantern is at (-0.5, 1.21, 2.53) and Chest at (2.5, 1.27, 3.42), both in front of the camera. `is_position_behind` was false for all 9, and each projected to a screen position inside the 1280x720 viewport.
+- Screenshot /home/USER/tmp/scene-debug-trials/t1/shots/after.png, which I looked at, shows all 9 props sitting on the floor: rubble, bones, blue puddle, brown bucket, green fungus, chest, candle, skull and orange lantern. None overlap each other.
+- A plain headless run (`--quit-after 120`) printed 0 error or warning lines.
+- Limit: the audit's surface test casts from the AABB centre only, so it cannot catch occlusion by other props. I checked that by eye on the screenshot only. I took no before screenshot, so there is no visual before/after comparison.
+
+MODEL: claude-sonnet-5-5 (Sonnet 5.5), self-reported
+
+TOOL_CALLS: 7

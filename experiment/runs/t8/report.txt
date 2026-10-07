@@ -1,0 +1,21 @@
+ROOT CAUSES:
+1. Props in `_scatter_clutter` (Rubble, Fungus, Bones, Puddle) were placed from a hard-coded `FLOOR_Y := 0.0`. The GridMap floor is not at y=0. The cell is centred on y (cell_center_y default true), so the 0.1 m slab spans y 0.95..1.05 and its top is at 1.05. The four props sat at y 0..0.4, entirely under the floor, so the floor hid them. The audit reported BURIED for all four.
+2. `_drop_small_props` (Skull, Candle, Bucket) set `prop.global_position.y` before `decor.add_child(prop)`. Reading global_transform on a node outside the tree fails with `Condition "!is_inside_tree()"` and returns an identity transform. The setter then wrote the y into that identity transform, which threw away the x/z set one line earlier. All three props ended up at world x=0, z=0 (audit: ORIGIN), stacked in one spot instead of at their intended positions. They were visible but misplaced. The console logged the is_inside_tree error 6 times.
+3. `_place_ahead_of_player` (Lantern, Chest) added `cam.global_basis.z * distance`. A Camera3D looks along -Z, so +Z is behind the camera. The props were placed 4-5 m behind the player and fell outside the near plane (audit: NOT_IN_FRUSTUM).
+
+CHANGES:
+- /home/USER/tmp/scene-debug-trials/t8/spawner.gd, former line 4: removed `const FLOOR_Y := 0.0`. It was the stale constant and nothing else used it.
+- spawner.gd, line 17 (`_scatter_clutter`): `prop.position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)`. The height now comes from the GridMap via the existing `surface_y()` helper, as the other two spawners already did.
+- spawner.gd, lines 26-28 (`_drop_small_props`): `decor.add_child(prop)` now runs first. Then `prop.global_position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)` sets the whole position at once.
+- spawner.gd, line 34 (`_place_ahead_of_player`): `cam.global_basis.z * spec[1]` became `- cam.global_basis.z * spec[1]`, so the props go in front of the camera.
+- dungeon.gd and main.tscn were not changed.
+
+VERIFICATION:
+- Before: the headless run logged 6 `!is_inside_tree()` errors from spawner.gd:31. The recipe audit returned FINDINGS: 4 BURIED, 3 ORIGIN, 2 NOT_IN_FRUSTUM.
+- After: the headless run (--quit-after 120) printed no errors. The recipe audit returned verdict CLEAN with 9 nodes audited, no findings and no notes, so the surface and camera checks did run.
+- A separate runner dump gave every prop AABB bottom y = 1.05, which is the floor top. All nine centres are inside the camera frustum. The x/z positions are the intended ones, e.g. Skull (-1.5, 3.0), Candle (1.5, 3.5), Bucket (4.0, 0.0), Lantern (-0.5, 2.53), Chest (2.5, 3.42).
+- Screenshot /home/USER/tmp/scene-debug-trials/t8/shots/a.png shows all nine props visible and resting on the floor: the gray rubble box, bones, blue puddle, green fungus, brown bucket, candle, white skull, orange lantern and brown chest.
+- Not checked: the Puddle (1 cm above the floor) showed no z-fighting in the one screenshot, but I did not look at it from other angles.
+
+MODEL: claude-sonnet-5-5 (Sonnet 5.5), self-reported
+TOOL_CALLS: 9 (the first 8 were the investigation, the fix and verification; the 9th was a final cleanup)

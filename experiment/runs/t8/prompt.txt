@@ -1,0 +1,65 @@
+You are helping with a small Godot 4.6 game project at /home/USER/tmp/scene-debug-trials/t8. Work only inside that directory (screenshots go under /home/USER/tmp/scene-debug-trials/t8/shots); do not read or write anywhere else.
+
+The user's report, verbatim: "The props don't show up."
+
+Fix the project so the props show up, each resting on the floor where it is meant to be and visible from the player camera. Then report.
+
+What you have:
+- Godot 4.6.1 at /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64. Run it headless, always under a timeout, for example: timeout 60 /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --headless --path /home/USER/tmp/scene-debug-trials/t8 --quit-after 120   (--quit-after N stops after N frames; it runs res://main.tscn).
+- A screenshot helper (software GL, no GPU needed). Create /home/USER/tmp/scene-debug-trials/t8/shots first, then: timeout 100 xvfb-run -a -s "-screen 0 1280x720x24" /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --rendering-driver opengl3 --path /home/USER/tmp/scene-debug-trials/t8 res://tools/shot.tscn -- res://main.tscn /home/USER/tmp/scene-debug-trials/t8/shots/a.png   and look at the PNG with the Read tool.
+- A stand-in for godot-mcp's godot_exec, for inspecting the running scene: write a GDScript function body to a file and run: timeout 90 /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --headless --path /home/USER/tmp/scene-debug-trials/t8 res://tools/runner.tscn -- res://main.tscn <body-file>   `tree` (SceneTree) and `root` (Window) are in scope; no `await`; end the body with `return` of a String (use JSON.stringify for structure). The line starting EXEC_RESULT is its output.
+- Guidance for this kind of problem (also at /home/USER/tmp/scene-debug-trials/t8/recipe/RECIPE.md, with the script it describes at /home/USER/tmp/scene-debug-trials/t8/recipe/runtime_audit.body.txt):
+
+-----
+# Recipe: 3D geometry that renders nothing and logs nothing
+
+When a prop, decal or mesh "isn't showing up" and the console is quiet, don't start with
+screenshots, or with theories about lights, UI or occlusion. Ask the running scene where the
+thing actually is, and compare that with the surface it should rest on and the camera that
+should see it. This is the check described in godot-mcp issue #328.
+
+## What to compare
+
+1. **The node's world-space AABB against the surface beneath it.** The AABB is
+   `global_transform * get_aabb()`. Ray straight down from its centre; if nothing is below, ray
+   straight up. Seated means the AABB bottom sits on the hit. A node with no surface below it and
+   one above it is buried.
+2. **The node's world position against the world origin.** A node at x=0, z=0 while its siblings
+   are elsewhere was placed wrong.
+3. **The AABB against the active camera's frustum.** Outside means the node cannot be seen from
+   where the camera is. Note which plane it falls outside of.
+4. **The game console** for `Condition "!is_inside_tree()"`: a transform was read or written on a
+   node that was not in the tree yet.
+
+Compare the numbers with what you *expected*, not with what merely looks plausible.
+
+## How to run it
+
+- With godot-mcp: paste `runtime_audit.body.txt` as the `source` of `godot_exec run` while the
+  game is running. It returns one JSON string.
+- Without the editor: `godot --headless --path <project> res://tools/runner.tscn -- res://<scene>.tscn res://recipe/runtime_audit.body.txt`
+  (the runner wraps and scans the body the way `godot_exec` does). The result is the line that
+  starts `EXEC_RESULT`.
+
+## Reading the result
+
+- `findings`: `BURIED` / `UNSUPPORTED` / `INSIDE_COLLIDER` (error), `ORIGIN` (suspect),
+  `SUNK` / `FLOATING` (warn), `NOT_IN_FRUSTUM` (info). Each names the node, its world y range and
+  what it was compared with. It reports; it never fixes.
+- `verdict: CLEAN` only means "nothing found among the nodes audited". Read `audited` and
+  `notes`: `NOTHING_AUDITED`, `NO_COLLIDERS` and `NO_ACTIVE_CAMERA` mean part of the check did not
+  really run.
+- Limits: the surface test needs colliders and skips nodes that carry their own; `ORIGIN` is a
+  heuristic and also flags a deliberate origin prop that has placed siblings; `NOT_IN_FRUSTUM` is
+  expected for anything behind or beside you, so read it against what you expect to see.
+-----
+
+Limits: at most 40 tool calls; stop earlier if you are done. You may refuse, ask for clarification, or stop and escalate to the user if something looks wrong; say so in the report instead of guessing.
+
+Finish with exactly this report:
+ROOT CAUSES: every distinct root cause you found, one per line (what was wrong, and why it produced the symptom)
+CHANGES: file and line, what you changed
+VERIFICATION: what you ran after the change and what it showed
+MODEL: your model id, self-reported
+TOOL_CALLS: how many tool calls you used
+

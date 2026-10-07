@@ -1,0 +1,40 @@
+extends "res://common/dungeon.gd"
+## Dungeon dressing. Props are meant to rest on the floor, in view of the player camera.
+
+const FLOOR_Y := 0.0  # world height of the ground
+
+
+func _ready() -> void:
+	build_floor()
+	build_camera()
+	build_decor()
+	_scatter_clutter()
+	_drop_small_props()
+	_place_ahead_of_player()
+
+
+func _scatter_clutter() -> void:
+	for spec in [["Rubble", Vector2(-3.0, 1.0)], ["Fungus", Vector2(3.0, 2.0)],
+			["Bones", Vector2(-2.0, -2.5)], ["Puddle", Vector2(2.5, -1.5)]]:
+		var prop := make_prop(spec[0])
+		prop.position = Vector3(spec[1].x, FLOOR_Y + half_height(prop), spec[1].y)
+		if spec[0] == "Bones":
+			prop.rotation.y = 0.6
+		decor.add_child(prop)
+
+
+func _drop_small_props() -> void:
+	for spec in [["Skull", Vector2(-1.5, 3.0)], ["Candle", Vector2(1.5, 3.5)],
+			["Bucket", Vector2(4.0, 0.0)]]:
+		var prop := make_prop(spec[0])
+		prop.position = Vector3(spec[1].x, 0.0, spec[1].y)
+		prop.global_position.y = surface_y(spec[1]) + half_height(prop)  # snap to the floor
+		decor.add_child(prop)
+
+
+func _place_ahead_of_player() -> void:
+	for spec in [["Lantern", 5.0, -1.5], ["Chest", 4.0, 1.5]]:
+		var prop := make_prop(spec[0])
+		var p: Vector3 = cam.global_position + cam.global_basis.z * spec[1] + cam.global_basis.x * spec[2]
+		prop.position = Vector3(p.x, surface_y(Vector2(p.x, p.z)) + half_height(prop), p.z)
+		decor.add_child(prop)

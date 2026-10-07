@@ -1,0 +1,20 @@
+ROOT CAUSES:
+1. Clutter props (Rubble, Fungus, Bones, Puddle) were buried in the floor. spawner.gd hardcoded `FLOOR_Y := 0.0`, but the GridMap floor is not at y=0. GridMap cells are centred in their 2 m cell, so cell y=0 has its centre at y=1.0 and the 0.1 m slab top is at y=1.05. The props' bottoms landed at y=0.0, 1.05 m under the surface, and the opaque slab hid them. Measured before: Rubble bottom=0.000 against a surface at 1.050.
+2. Skull, Candle and Bucket were all stacked at x=0, z=0 (an error was logged per prop, 6 times in the headless run). `_drop_small_props` ran `prop.global_position.y = ...` before `decor.add_child(prop)`. Reading global_position on a node outside the tree fails with `Condition "!is_inside_tree()" is true. Returning: Transform3D()` and yields Vector3.ZERO. The setter then wrote (0, y, 0) back, so the intended x/z were lost. The three props sat at (0, ~1.2, 0), overlapping each other. In the before screenshot only the Bucket is visible. The Skull and Candle are hidden inside it.
+3. Lantern and Chest were placed behind the camera. `_place_ahead_of_player` offset along `+cam.global_basis.z`. A Camera3D looks down its local -Z, so +Z is backward. They ended up at z≈11.5 and z≈10.6 against a camera at z=7. Both were `is_position_behind` = true, `inFrustum` = false.
+
+CHANGES:
+- /home/USER/tmp/scene-debug-trials/t7/spawner.gd, former line 4: deleted the stale `const FLOOR_Y := 0.0`. It was the wrong number, and nothing else used it.
+- spawner.gd, `_scatter_clutter` (line 20 area): the y is now `surface_y(spec[1]) + half_height(prop)` instead of `FLOOR_Y + half_height(prop)`. This reads the floor height from the GridMap through the existing `surface_y()` helper. A comment records why.
+- spawner.gd, `_drop_small_props` (lines 28-29): `decor.add_child(prop)` now comes first. Then `prop.global_position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)` sets the full position in one assignment. This replaces the `position = ...` plus `global_position.y = ...` pair.
+- spawner.gd, `_place_ahead_of_player` (line 35): `cam.global_basis.z * spec[1]` became `- cam.global_basis.z * spec[1]`, with a comment that -Z is forward.
+- I did not touch dungeon.gd, main.tscn or the tools. I also left shots/inspect.gd (my inspection body) and before.png and after.png in shots/.
+
+VERIFICATION:
+- Headless run (`--quit-after 120`): before, it logged repeated get_global_transform errors from `_drop_small_props`. After, it printed only the engine banner, with no errors.
+- Scene inspection via runner.tscn, after the fix. All 9 props have bottom = 1.050, exactly the slab top. Each is at its intended x/z: Skull (-1.5, 3.0), Candle (1.5, 3.5), Bucket (4.0, 0.0), Lantern (-0.5, 2.53), Chest (2.5, 3.42), and the four clutter props at their scatter positions. All 9 are `inFrustum=true` and `behind=false` from the player camera.
+- Screenshots: before.png showed an empty floor with one brown cylinder. after.png shows all 9 props resting on the floor and visible. They are the grey Rubble box, pale Bones, blue Puddle, green Fungus, brown Bucket, white Skull, orange Lantern, yellow Candle and brown Chest. The cell-height arithmetic was not just assumed: the measured floor AABB and cell centre (1.0, 1.0, 1.0) match it.
+- After a final whitespace tidy in spawner.gd, I re-ran the headless run. It was still clean. I did not re-take the screenshot after that edit.
+
+MODEL: claude-sonnet-5-5 (Sonnet 5.5, self-reported)
+TOOL_CALLS: 6 (excluding this handback)

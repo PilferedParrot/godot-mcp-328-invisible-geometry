@@ -1,0 +1,22 @@
+ROOT CAUSES:
+1. Four props (Rubble, Fungus, Bones, Puddle) were buried inside the floor. `_scatter_clutter` placed them at the hard-coded `FLOOR_Y = 0.0`. The GridMap centres each slab in its 2 m cell (`cell_center_y` is true by default), so the slab spans y 0.95 to 1.05 and its top is at 1.05, not 0. Before the fix their bottoms were at y = 0.0, so each was below the slab and hidden.
+2. Three props (Skull, Candle, Bucket) all collapsed to the world origin, so they were stacked together and mostly hidden. `_drop_small_props` set `prop.global_position.y` before `decor.add_child(prop)`. A node outside the tree can't compute its global transform, so each call logged `Condition "!is_inside_tree()" is true` and read back an identity transform. That reset x and z to 0. The log showed one such error per prop, plus more from the later runs of the same line. After the fix, the log has no error lines.
+3. Two props (Lantern, Chest) were placed behind the camera. `_place_ahead_of_player` added `cam.global_basis.z * distance`. In Godot a camera looks down -Z, so +basis.z points backward. They landed at z ≈ 10.6 to 11.5, behind the camera at z = 7, and `is_position_behind` returned true for both.
+
+CHANGES:
+All edits are in /home/USER/tmp/scene-debug-trials/t4/spawner.gd. Nothing else was touched.
+- Removed the `const FLOOR_Y := 0.0` line (it was line 4). It was the wrong ground height and had no other use. A tidy-up edit removed one stray blank line left behind.
+- `_scatter_clutter` (about line 21): `prop.position = Vector3(x, FLOOR_Y + half_height(prop), z)` is now `Vector3(x, surface_y(spec[1]) + half_height(prop), z)`. `surface_y` reads the real slab top from the GridMap, as the other two spawn functions already did.
+- `_drop_small_props` (lines 29 to 30): `decor.add_child(prop)` now runs first. Then `prop.global_position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)` sets the full position. This replaces the old `position = (x, 0, z)` followed by `global_position.y = ...`.
+- `_place_ahead_of_player` (line 36): `cam.global_basis.z * spec[1]` is now `- cam.global_basis.z * spec[1]`, so props go in front of the camera.
+
+VERIFICATION:
+- Before the fix, I used the runner stand-in to dump the scene. Props 1 to 4 had bottoms at y = 0.0. Skull, Candle and Bucket were all at x = 0, z = 0. Lantern and Chest had `behind = true`. The baseline screenshot showed one orange-brown cylinder (the Bucket) on a bare floor.
+- After the fix, `--headless --quit-after 60` prints no error or warning lines (grep count 0), including after the last whitespace edit.
+- After the fix, the runner dump shows all 9 props with bottom = 1.05, which equals the slab top. All 9 have `behind = false` and project inside the 1280x720 viewport. Positions are as specified, for example Skull (-1.5, 1.19, 3.0), Bucket (4.0, 1.21, 0.0), Lantern (-0.5, 1.21, 2.53) and Chest (2.5, 1.27, 3.42).
+- Screenshot /home/USER/tmp/scene-debug-trials/t4/shots/b.png shows all nine props, each distinct and sitting on the floor: rubble, bones, puddle, bucket, fungus, chest, candle, lantern and skull. The earlier shot is shots/a.png.
+
+I made one design call. Rather than moving the floor to y = 0, I made the props follow the GridMap surface. That is the source of truth `surface_y` already provides, and it keeps the camera framing unchanged.
+
+MODEL: claude-sonnet-5-5 (Sonnet 5.5, self-reported)
+TOOL_CALLS: 8

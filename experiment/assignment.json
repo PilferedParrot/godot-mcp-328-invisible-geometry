@@ -1,0 +1,34 @@
+{
+ "t1": {
+  "arm": "with",
+  "wave": 1
+ },
+ "t2": {
+  "arm": "without",
+  "wave": 1
+ },
+ "t3": {
+  "arm": "with",
+  "wave": 1
+ },
+ "t4": {
+  "arm": "without",
+  "wave": 1
+ },
+ "t5": {
+  "arm": "without",
+  "wave": 2
+ },
+ "t6": {
+  "arm": "with",
+  "wave": 2
+ },
+ "t7": {
+  "arm": "without",
+  "wave": 2
+ },
+ "t8": {
+  "arm": "with",
+  "wave": 2
+ }
+}

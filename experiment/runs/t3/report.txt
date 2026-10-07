@@ -1,0 +1,21 @@
+ROOT CAUSES:
+1. `_scatter_clutter` (Rubble, Fungus, Bones, Puddle) used a hard-coded `FLOOR_Y := 0.0`. The real floor top is at y=1.05. The GridMap centres each cell on y (cell 0 is centred at y=1.0, the slab is 0.1 thick), and `surface_y()` returns 1.05. These four props sat at y 0..0.4, below the floor slab (underside 0.95), so the floor hid them. The audit reported BURIED for all four.
+2. `_drop_small_props` (Skull, Candle, Bucket) set `prop.global_position.y` before `decor.add_child(prop)`. Reading the global transform of a node outside the tree logs `Condition "!is_inside_tree()" ... get_global_transform` (that error appeared in the headless console) and returns identity. The write then rebuilt the position from that identity, which reset x/z to 0,0. All three props ended up stacked in one column at the world origin (0, ~1.2, 0) instead of their intended spots. The audit reported ORIGIN for all three.
+3. `_place_ahead_of_player` (Lantern, Chest) offset from the camera along `+cam.global_basis.z`. A Camera3D looks down -Z, so +Z is behind the camera. Both props landed at z of about 10.6 and 11.5, behind the camera at z=7. The audit reported NOT_IN_FRUSTUM against the near plane.
+
+CHANGES:
+All changes are in /home/USER/tmp/scene-debug-trials/t3/spawner.gd. dungeon.gd was not touched.
+- Removed the `const FLOOR_Y := 0.0` line (old line 4). It was the wrong constant.
+- `_scatter_clutter`, now line 17: the y is now `surface_y(spec[1]) + half_height(prop)` instead of `FLOOR_Y + half_height(prop)`. The floor height is read from the GridMap, not assumed.
+- `_drop_small_props`, now lines 27-28: replaced the pre-add_child `prop.position = ...; prop.global_position.y = ...; decor.add_child(prop)` with `decor.add_child(prop)` first, then `prop.global_position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)`.
+- `_place_ahead_of_player`, now line 34: `cam.global_basis.z * spec[1]` became `-cam.global_basis.z * spec[1]`, so props go in front of the camera.
+
+VERIFICATION:
+- Headless run with `--quit-after 120`: the console now shows only the Godot banner. The `!is_inside_tree()` errors are gone. Before the change it logged that error repeatedly.
+- `runtime_audit.body.txt` via `runner.tscn`: before, 9 audited with 4 BURIED, 3 ORIGIN and 2 NOT_IN_FRUSTUM. After, 9 audited, no findings, no notes, verdict CLEAN. The floor has colliders, so the surface test really ran.
+- World AABBs from a separate `runner.tscn` dump: all 9 props now have their bottom at y=1.05, which is the floor top. Their x/z are the intended specs: Skull (-1.5, 3), Candle (1.5, 3.5), Bucket (4, 0), Lantern (-0.5, 2.53), Chest (2.5, 3.42), and the four clutter props at their original coordinates.
+- Screenshot at /home/USER/tmp/scene-debug-trials/t3/shots/after.png (software GL, 1280x720), viewed with Read: all 9 props are visible and resting on the floor. They are the rubble box, bones, blue puddle, brown bucket, green fungus, brown chest, candle, skull and orange lantern. I did not take a "before" screenshot, because the audit and AABB numbers already showed the problem.
+
+MODEL: claude-sonnet-5-5 (Sonnet 5.5), self-reported
+
+TOOL_CALLS: 6 (including this handback)

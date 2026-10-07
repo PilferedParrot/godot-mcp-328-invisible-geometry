@@ -1,0 +1,8 @@
+ 1 Bash  cd $W && find . -type f -not -path './.godot/*' | head -50 && echo --- && cat project.godot && echo --- && cat main.tscn && echo --- && for f in $(find . -name '*.gd' -not -path './tools/*' -not -path './.godot/*'); do echo "== $f"; cat $f; done
+ 2 Bash  cd $W && mkdir -p shots && G=/home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 && timeout 60 $G --headless --path . --quit-after 60 2>&1 | tail -30; echo ---; cat tools/shot.gd | head -40; echo ---; cat tools/runner.gd | head -40; timeout 100 xvfb-run -a -s "-screen 0 1280x720x24" $G --rendering-driver opengl3 --path . res://tools/shot.tscn -- res://main.tscn $W/shots/a.png 2>&1 | tail -15
+ 3 Read  $W/shots/a.png
+ 4 Bash  cd $W && cat > <harness scratchpad>/body1.txt <<'EOF' ⏎ var out := [] ⏎ var main = tree.current_scene ⏎ var cam: Camera3D = main.get_node("Camera3D") ⏎ for p in main.get_node("Decor").get_children(): ⏎ 	var mi := p as MeshInstance3D ⏎ 	var aabb := mi.mesh.get_aabb() ⏎ 	var gp: Vector3 = mi.global_position ⏎ 	out.append({"n": p.name, "pos": [s
+ 5 Bash  cd $W && python3 - <<'EOF' ⏎ p='spawner.gd' ⏎ s=open(p).read() ⏎ s=s.replace('''const FLOOR_Y := 0.0  # world height of the ground ⏎  ⏎  ⏎ ''',''' ⏎  ⏎ ''') ⏎ s=s.replace('''		prop.position = Vector3(spec[1].x, FLOOR_Y + half_height(prop), spec[1].y) ⏎ ''','''		# The floor slab is centred in its GridMap cell (top at ~1.05, not 0), so read the real surface. ⏎ 		prop.position = Vector3(spec[1].x, su
+ 6 Read  $W/shots/b.png
+ 7 Edit  $W/spawner.gd
+ 8 Bash  cd $W && timeout 60 /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --headless --path . --quit-after 60 2>&1 | grep -ciE "error|warning"

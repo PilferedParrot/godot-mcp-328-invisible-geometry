@@ -1,0 +1,32 @@
+{
+ "trial": "t2",
+ "arm": "without",
+ "model_asked": "sonnet",
+ "model_self_reported": [
+  "claude-sonnet-5-5 (Sonnet 5.5), self-reported"
+ ],
+ "faults_fixed": {
+  "F1_buried": true,
+  "F2_origin": true,
+  "F3_behind_camera": true
+ },
+ "n_fixed": 3,
+ "all_present": true,
+ "all_in_frustum": true,
+ "root_causes_named": {
+  "RC1": true,
+  "RC2": true,
+  "RC3": true
+ },
+ "n_root_causes_named": 3,
+ "full_success": true,
+ "harness_tool_uses": 8,
+ "harness_tokens": 79517,
+ "harness_ms": 64469,
+ "tool_calls_parsed_excluding_handback": 7,
+ "tool_calls_self_reported": [
+  "8"
+ ],
+ "paths_outside_workspace_in_tool_inputs": [],
+ "scratchpad_writes": false
+}

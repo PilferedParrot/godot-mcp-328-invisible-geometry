@@ -1,0 +1,25 @@
+# naive_audit: the plausible-but-wrong check. It is what you reach for first when props
+# "don't show up": is it in the tree, visible, has a mesh, has a sane size, is it above
+# ground (y >= 0) and not sitting at the origin?  Kept to show what that check is blind to.
+var scene: Node = tree.current_scene
+var findings: Array = []
+var stack: Array = [scene]
+var audited := 0
+while not stack.is_empty():
+	var n: Node = stack.pop_back()
+	stack.append_array(n.get_children())
+	if n is MeshInstance3D:
+		audited += 1
+		if not n.is_inside_tree():
+			findings.append({"node": str(n.name), "problem": "not in tree"})
+		elif not n.visible:
+			findings.append({"node": str(n.name), "problem": "visible = false"})
+		elif n.mesh == null:
+			findings.append({"node": str(n.name), "problem": "no mesh"})
+		elif not n.get_aabb().size.is_finite():
+			findings.append({"node": str(n.name), "problem": "bad AABB"})
+		elif n.global_position.y < 0.0:
+			findings.append({"node": str(n.name), "problem": "below ground"})
+		elif n.global_position == Vector3.ZERO:
+			findings.append({"node": str(n.name), "problem": "at the origin"})
+return JSON.stringify({"audited": audited, "findings": findings, "verdict": "CLEAN" if findings.is_empty() else "FINDINGS"})

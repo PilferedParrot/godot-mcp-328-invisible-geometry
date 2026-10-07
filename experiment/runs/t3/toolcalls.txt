@@ -1,0 +1,6 @@
+ 1 Bash  cd $W && find . -type f -not -path './.godot/*' | head -50 && cat project.godot && cat main.tscn && mkdir -p shots
+ 2 Bash  cd $W && cat -n spawner.gd dungeon.gd
+ 3 Bash  cd $W && cat recipe/runtime_audit.body.txt | head -150; echo ----; cat tools/runner.gd | head -60; G=/home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64; timeout 60 $G --headless --path . --quit-after 120 2>&1 | tail -30
+ 4 Bash  cd $W && G=/home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64; timeout 90 $G --headless --path . res://tools/runner.tscn -- res://main.tscn res://recipe/runtime_audit.body.txt 2>&1 | grep -E "EXEC_RESULT" | sed 's/^EXEC_RESULT *//' | python3 -c " ⏎ import sys,json ⏎ d=json.loads(sys.stdin.read()) ⏎ print(d['audited'],d['camera'],d['counts'],d['notes'],d['verdict']) ⏎ for f in d['findings']: p
+ 5 Bash  cd $W && python3 - <<'EOF' ⏎ p='spawner.gd' ⏎ s=open(p).read() ⏎ s=s.replace('''const FLOOR_Y := 0.0  # world height of the ground ⏎  ⏎  ⏎ ''','') ⏎ s=s.replace('''		prop.position = Vector3(spec[1].x, FLOOR_Y + half_height(prop), spec[1].y) ⏎ ''','''		prop.position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y) ⏎ ''') ⏎ s=s.replace('''		prop.position = Vector3(spec[1].x, 0
+ 6 Read  $W/shots/after.png

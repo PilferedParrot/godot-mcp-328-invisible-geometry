@@ -1,0 +1,7 @@
+ 1 Bash  cd $W && find . -type f -not -path './.godot/*' | head -50 && echo ---- && cat project.godot main.tscn && ls *.gd 2>/dev/null
+ 2 Bash  cd $W && echo "== spawner.gd" && cat -n spawner.gd && echo "== dungeon.gd" && cat -n dungeon.gd
+ 3 Bash  cd $W && mkdir -p shots && cat > shots/inspect.gdbody <<'EOF' ⏎ var m = tree.current_scene ⏎ var out := {} ⏎ var fl = m.floor_grid ⏎ var cell = fl.local_to_map(fl.to_local(Vector3(0,0,0))) ⏎ out["cell_center_y"] = fl.cell_center_y ⏎ out["floor_surface_y_at_0_0"] = m.surface_y(Vector2(0,0)) ⏎ out["cam_pos"] = str(m.cam.global_position) ⏎ out["cam_fwd"] = str(-m.cam.global_basis.z) ⏎ var props := []
+ 4 Bash  cd $W && timeout 90 /home/USER/.local/bin/Godot_v4.6.1-stable_linux.x86_64 --headless --path . res://tools/runner.tscn -- res://main.tscn shots/inspect.gdbody 2>&1 | grep -v '^\s*$' | sed -n '1,45p' | grep -E 'EXEC|cam|floor|cell|"n"|"pos"|"vis"|behind|screen'
+ 5 Read  $W/shots/before.png
+ 6 Bash  cd $W && python3 - <<'EOF' ⏎ p='spawner.gd' ⏎ s=open(p).read() ⏎ s=s.replace('const FLOOR_Y := 0.0  # world height of the ground\n\n\n','') ⏎ s=s.replace('prop.position = Vector3(spec[1].x, FLOOR_Y + half_height(prop), spec[1].y)','prop.position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)') ⏎ s=s.replace('''		prop.position = Vector3(spec[1].x, 0.0, spec[1].y) ⏎ 		prop.g
+ 7 Read  $W/shots/after.png

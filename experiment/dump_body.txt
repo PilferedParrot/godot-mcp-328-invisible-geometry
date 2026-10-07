@@ -1,0 +1,23 @@
+# Measure each named prop in the running scene: world position, AABB bottom, the floor top
+# under it (from the GridMap API, not a raycast) and whether the camera's own
+# is_position_in_frustum() accepts its centre. Used to derive the answer key from the control
+# scene and to score a finished workspace. Independent of recipe/runtime_audit.body.txt.
+var names := ["Rubble", "Fungus", "Bones", "Puddle", "Skull", "Candle", "Bucket", "Lantern", "Chest"]
+var scene: Node = tree.current_scene
+var floor_node = scene.find_child("Floor", true, false)
+var cam: Camera3D = root.get_camera_3d()
+var out := {}
+for nm in names:
+	var p = scene.find_child(nm, true, false)
+	if p == null or not (p is MeshInstance3D):
+		out[nm] = null
+		continue
+	var wb: AABB = p.global_transform * p.get_aabb()
+	var floor_top = null
+	if floor_node != null and floor_node is GridMap:
+		var cell: Vector3i = floor_node.local_to_map(floor_node.to_local(Vector3(p.global_position.x, 0.0, p.global_position.z)))
+		if floor_node.get_cell_item(cell) != GridMap.INVALID_CELL_ITEM:
+			floor_top = floor_node.to_global(floor_node.map_to_local(cell)).y + floor_node.mesh_library.get_item_mesh(floor_node.get_cell_item(cell)).get_aabb().end.y
+	out[nm] = {"x": p.global_position.x, "z": p.global_position.z, "bottom": wb.position.y, "floor_top": floor_top,
+		"in_frustum": (cam != null and cam.is_position_in_frustum(wb.get_center()))}
+return JSON.stringify(out)

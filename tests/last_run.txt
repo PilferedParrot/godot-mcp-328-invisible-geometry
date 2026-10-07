@@ -1,0 +1,55 @@
+# Recorded run of the verification scripts
+date: 2026-10-07T12:07:11-05:00
+godot: 4.6.1.stable.official.14d19694e
+project git HEAD when run: dd5759a (plus uncommitted work at the time)
+
+## python3 tests/run_tests.py
+PASS control: audit CLEAN, 9 nodes audited, 0 findings
+PASS control: audit ran at the project's 1280x720 viewport
+PASS buggy: exactly the 9 planted findings (4 BURIED, 3 ORIGIN, 2 NOT_IN_FRUSTUM), no extras
+PASS hazards: findings are exactly the 4 recorded (1 is a KNOWN false positive: WellHead)
+PASS naive check on buggy: reports NOTHING (blind to all 9 faulty props)
+PASS mutant M1 floor-at-y=0 on buggy: loses exactly its fault group (4 nodes), keeps the other 5
+PASS mutant M1 floor-at-y=0 on control: still quiet (it is plausible, not simply broken)
+PASS mutant M2 exact-zero origin on buggy: loses exactly its fault group (3 nodes), keeps the other 6
+PASS mutant M2 exact-zero origin on control: still quiet (it is plausible, not simply broken)
+PASS mutant M3 within-far-distance on buggy: loses exactly its fault group (2 nodes), keeps the other 7
+PASS mutant M3 within-far-distance on control: still quiet (it is plausible, not simply broken)
+PASS runner refuses a body containing await (as godot_exec does)
+PASS runner refuses OS.execute (godot_exec denylist)
+PASS empty scene: verdict NOTHING_AUDITED, not CLEAN
+PASS floor without collision: says NO_COLLIDERS, reports no UNSUPPORTED, still finds ORIGIN and NOT_IN_FRUSTUM
+PASS nodes with their own collider are skipped and counted; a BURIED body is a known blind spot (not flagged)
+PASS engine facts: test ran
+PASS engine facts: a pre-add_child() write logs Condition "!is_inside_tree()"
+PASS engine facts: whole-vector write before add_child() lands correctly under an identity parent
+PASS engine facts: ...but is stored as the LOCAL value, so a transformed parent displaces it (not to the origin)
+PASS engine facts: ...and it resets rotation and scale to identity
+PASS engine facts: a component write or += before add_child() lands at x=0, z=0 (the origin column)
+PASS engine facts: the same write after add_child() is correct
+PASS engine facts: GridMap cell_center_y defaults to true and a 2 m cell with a 0.1 m slab puts the surface at y=1.05
+PASS engine facts: ray semantics (above: hit y 1.05 n=+y; inside: zero normal; below slab: down misses, up hits underside y 0.95 n=-y)
+PASS engine facts: frustum planes point outward (inside = negative distance) and agree with is_position_in_frustum
+
+26/26 passed
+exit=0
+
+## python3 experiment/validate_scorer.py
+PASS buggy as shipped                                                   got F1,F2,F3 = (0, 0, 0)  expected (0, 0, 0)  all_in_frustum=False
+PASS fix F1 only (derive floor height)                                  got F1,F2,F3 = (1, 0, 0)  expected (1, 0, 0)  all_in_frustum=False
+PASS fix F2 only (add_child first)                                      got F1,F2,F3 = (0, 1, 0)  expected (0, 1, 0)  all_in_frustum=False
+PASS fix F3 only (flip the sign)                                        got F1,F2,F3 = (0, 0, 1)  expected (0, 0, 1)  all_in_frustum=True
+PASS fix all three                                                      got F1,F2,F3 = (1, 1, 1)  expected (1, 1, 1)  all_in_frustum=True
+PASS F1 hard-coded to the right value (1.05): outcome counts            got F1,F2,F3 = (1, 0, 0)  expected (1, 0, 0)  all_in_frustum=False
+PASS F1 'close' hard-coded 1.0 (5 cm sunk): must NOT count              got F1,F2,F3 = (0, 0, 0)  expected (0, 0, 0)  all_in_frustum=False
+PASS F3 'fixed' by spinning the camera round instead: must NOT count    got F1,F2,F3 = (0, 0, 0)  expected (0, 0, 0)  all_in_frustum=False
+exit=0
+
+## python3 tests/exec_guard_check.py
+guard sha256: 4a70542248f6a402 from godot-mcp-v4.1.11
+bad_await      {'accepted': False, 'compiled': False, 'token': 'await'}
+bad_exec       {'accepted': False, 'compiled': False, 'token': 'OS.execute'}
+naive_audit    {'accepted': True, 'compiled': True, 'token': ''}
+runtime_audit  {'accepted': True, 'compiled': True, 'token': ''}
+PASS upstream exec guard accepts and compiles both bodies, and refuses await / OS.execute
+exit=0

@@ -1,0 +1,22 @@
+ROOT CAUSES:
+1. Wrong ground height. `_scatter_clutter` (Rubble, Fungus, Bones, Puddle) placed props at the hard-coded `FLOOR_Y := 0.0` plus half height. The real floor is a GridMap whose cells are centred in y (default `cell_center_y`, 2 m cells), so the 0.1 m slab spans y 0.95 to 1.05 and its top is at 1.05, not 0.0. Those four props sat 1.05 m too low, under the slab, and the floor hid them. The audit reported all four as BURIED.
+2. Transform read/written before `add_child` in `_drop_small_props` (Skull, Candle, Bucket). `prop.global_position.y = ...` ran while the prop was not in the tree. The console showed `Condition "!is_inside_tree()" is true. Returning: Transform3D()`, and the global getter returned a zero/identity transform. The y-only write became a whole-position write of (0, y, 0). The intended x/z were lost and all three props landed stacked at the world origin, on top of each other (the audit flagged them as ORIGIN). Only the Bucket was visible in the "before" screenshot.
+3. Wrong direction in `_place_ahead_of_player` (Lantern, Chest). `cam.global_basis.z` points backwards from a Godot camera, which looks down -Z. The two props were placed behind the camera, and the audit reported NOT_IN_FRUSTUM at the near plane. A Camera3D "ahead" direction is `-basis.z`.
+
+CHANGES (all in /home/USER/tmp/scene-debug-trials/t6/spawner.gd):
+- Lines 4-6: removed `const FLOOR_Y := 0.0  # world height of the ground`, which was a stale and false claim. Replaced it with a comment saying props read the real surface through `surface_y()`.
+- Line 23 (`_scatter_clutter`): `FLOOR_Y + half_height(prop)` became `surface_y(spec[1]) + half_height(prop)`.
+- Lines 33-35 (`_drop_small_props`): removed the `prop.position = Vector3(x, 0, z)` plus `prop.global_position.y = ...` pair. It is now a single `prop.position = Vector3(spec[1].x, surface_y(spec[1]) + half_height(prop), spec[1].y)` plus an explanatory comment. Decor sits at the origin, so local equals world, and the call no longer needs the tree.
+- Line 42 (`_place_ahead_of_player`): `cam.global_basis.z * spec[1]` became `-cam.global_basis.z * spec[1]`.
+- I did not move the floor or the camera. The floor top stays at y=1.05 and every prop now reads that from the GridMap.
+
+VERIFICATION:
+- Before the change: the headless run printed repeated `!is_inside_tree()` errors from `_drop_small_props`. The runtime audit gave verdict FINDINGS (4 BURIED, 3 ORIGIN, 2 NOT_IN_FRUSTUM). The screenshot `shots/before.png` showed one prop on an empty floor.
+- After the change: the headless run (`--quit-after 120`) printed no errors or warnings. The audit gave `audited:9`, `findings:[]`, `notes:[]`, `verdict: CLEAN`.
+- An independent runner script (since deleted) computed each prop's world AABB. All 9 props have AABB bottom y = 1.05, exactly the slab top. All 9 are inside the active camera's frustum on every plane. Props are at distinct x/z, none at the origin. Lantern is at (-0.5, 2.53) and Chest at (2.5, 3.42), now in front of the camera.
+- Screenshot `shots/after.png` (software GL, 1280x720) shows all 9 props (rubble, bones, puddle, fungus, bucket, skull, candle, lantern, chest) resting on the floor in view of the camera.
+- Nothing needs your decision. The only judgment call was resolving the ground height from the GridMap via `surface_y()` instead of changing the floor to y=0.
+
+MODEL: claude-sonnet-5-5 (Sonnet 5.5), self-reported
+
+TOOL_CALLS: 8

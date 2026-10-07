@@ -1,0 +1,20 @@
+ROOT CAUSES:
+1. Hard-coded ground height. `const FLOOR_Y := 0.0` in spawner.gd assumed the floor top is at world y=0. The floor is a GridMap with 2 m cells and the default cell_center_y, so the slab centre is at y=1.0 and its top is at y=1.05 (`surface_y()` returns 1.05). The four `_scatter_clutter` props (Rubble, Fungus, Bones, Puddle) were placed at FLOOR_Y + half height (y of about 0.01 to 0.2), so they were buried about 1 m under the slab. The probe showed their bottoms at y=0.000 against a floor top of 1.05.
+2. `global_position` set before `add_child`. In `_drop_small_props`, `prop.global_position.y = ...` runs while the prop is not in the tree. `get_global_transform()` fails with `!is_inside_tree()` and returns identity, so the setter wrote (0, y, 0). Skull, Candle and Bucket all landed stacked at x=0, z=0 (at the camera's look-at line, one inside another) instead of at their intended spots. This produced 3 ERROR lines, one per prop, in the headless run.
+3. Wrong sign on the camera forward vector. `_place_ahead_of_player` used `+ cam.global_basis.z`. In Godot a camera looks along -Z, so Lantern and Chest were placed behind the camera (z=11.5 and 10.6, while the camera is at z=7). The probe reported `is_position_behind=true` for both.
+
+CHANGES:
+- /home/USER/tmp/scene-debug-trials/t5/spawner.gd, line 4 (was line 4): removed `const FLOOR_Y := 0.0` and left a comment saying the resting height comes from the GridMap.
+- spawner.gd, `_scatter_clutter` (line 22): `prop.position = Vector3(x, surface_y(spec[1]) + half_height(prop), z)`. The height is now derived from the GridMap, not a constant.
+- spawner.gd, `_drop_small_props` (lines 30-32): removed the `global_position.y` line and now set `prop.position` directly to (x, surface_y + half_height, z). The prop is not in the tree yet, and decor is at the origin, so local equals world.
+- spawner.gd, `_place_ahead_of_player` (line 38): `cam.global_position - cam.global_basis.z * spec[1] + cam.global_basis.x * spec[2]`.
+- dungeon.gd and main.tscn are unchanged. I also left a scratch probe, shots/probe.gd, in shots/.
+
+VERIFICATION:
+- `--headless --quit-after 120` run: no ERROR lines after the change (3 `!is_inside_tree()` errors per run before).
+- Probe via tools/runner.tscn, which prints each prop's world-space bounds and screen position. After the change all 9 props have bottom=1.050, matching the slab top of 1.05, with distinct x/z positions: Skull (-1.5, 3.0), Candle (1.5, 3.5), Bucket (4.0, 0.0), Lantern (-0.5, 2.53), Chest (2.5, 3.42). `is_position_behind` is false for all 9, and every projected screen position is inside the 1280x720 frame.
+- Screenshot at /home/USER/tmp/scene-debug-trials/t5/shots/after.png (viewed): all 9 props are visible and sitting on the floor with no sinking or floating: rubble, bones, puddle, fungus, bucket, chest, candle, skull and lantern.
+- I did not take a "before" screenshot. The "before" state comes from the position probe and the error log.
+
+MODEL: claude-sonnet-5-5 (self-reported)
+TOOL_CALLS: 5 (4 working calls plus this handback)

@@ -1,0 +1,9 @@
+# Addendum (written after the trials; the pre-registration itself is unchanged)
+
+- **Timestamp of record.** `PREREGISTRATION.md` was committed to a local git repository, commit `e81344a062c0e54579ea4a6a92a7eeab85ad22b5`, before any trial agent started. That repository is not part of the published tree, so a reader cannot check the commit. The file states its own time of writing, and the sha256 of the file at that commit is `7cd1e394ca1a41c02b3787dccfdd8e6618904ef4cc6c63e27d1a83c87c91be8b`.
+- **Treatment files** (`recipe/RECIPE.md`, `recipe/runtime_audit.body.txt`, `buggy/spawner.gd`, `common/dungeon.gd`) still match the hashes in the pre-registration. Checked again when wave 2 launched.
+- **Runs.** Eight, as planned, no re-runs. Assignment: `assignment.json`.
+- **Deviation 1: the exclusion rule.** It said a run that "read or wrote outside its workspace" would be excluded and re-run. Runs t3 and t4 wrote one scratch GDScript file each into the harness's own scratchpad directory, which the harness tells every agent to use for temporary files, so the rule as written conflicts with the harness. We kept both runs and flagged them. Primary tally 4/4 vs 4/4; without them 3/3 vs 3/3.
+- **Predictions against outcomes.** (1) ceiling effect: held. (2) WITH uses fewer tool calls: did not hold (median 7.5 vs 6.5). (3) F2 found in at least 3 of 4 per arm: held (4 of 4 each). (4) F1 most often missed WITHOUT: did not hold (never missed). (5) rails: held.
+- **One fixture error caught before the trials, not after.** The first version of the `hazards` fence post was 0.28 m tall and sunk 0.3 m, so it was fully buried and the audit (correctly) called it BURIED. We made the post 1.2 m tall. The hazards scene is not part of the experiment.
+- **Transcript check.** For all eight runs the tool-call inputs were parsed for paths outside the workspace and read by eye for relative-path wandering. Two scratchpad writes (above), nothing else.
